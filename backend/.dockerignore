@@ -1,0 +1,13 @@
+.env
+.git/
+.gitignore
+__pycache__/
+*.pyc
+logs/
+.pytest_cache/
+frontend/
+README.md
+GUIA_DESPLIEGUE.md
+nginx.conf
+setup_keycloak.sh
+cli.py
