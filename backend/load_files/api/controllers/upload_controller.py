@@ -15,6 +15,7 @@ from load_files.exceptions import (
 from load_files.implementations.upload_service_impl import UploadServiceImpl
 from load_files.interfaces.task_queue import TaskQueue
 from load_files.utils.logger import logger
+from load_files.utils.path_utils import build_upload_path
 
 
 class UploadController:
@@ -147,6 +148,9 @@ class UploadController:
 
         extension = self._get_extension(file.filename)
         size_bytes = os.path.getsize(temp_path)
+        upload_path = build_upload_path(
+            settings.SFTP_UPLOAD_DIR, tipo_archivo, fecha, file.filename,
+        )
 
         return {
             "task_id": task_id,
@@ -158,6 +162,7 @@ class UploadController:
             "size_display": self._format_size(size_bytes),
             "tipo_archivo": tipo_archivo,
             "fecha": fecha,
+            "upload_path": upload_path,
             "uploaded_by": username,
             "enqueued_at": datetime.now().isoformat(),
         }

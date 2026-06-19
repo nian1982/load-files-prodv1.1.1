@@ -8,5 +8,5 @@
 
 // const API_BASE = "http://localhost:8005";
 // const WS_BASE = "ws://localhost:8005";
-const API_BASE = "https://kelkoo-royalty-closure-periodically.trycloudflare.com";
-const WS_BASE  = "wss://kelkoo-royalty-closure-periodically.trycloudflare.com";
+const API_BASE = "https://hampton-broadway-estimate-recovery.trycloudflare.com";
+const WS_BASE  = "wss://hampton-broadway-estimate-recovery.trycloudflare.com";

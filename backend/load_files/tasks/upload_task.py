@@ -11,6 +11,7 @@ from load_files.config.settings import settings
 from load_files.exceptions import DomainException
 from load_files.implementations.paramiko_sftp_client import ParamikoSFTPClient
 from load_files.utils.logger import logger
+from load_files.utils.path_utils import build_upload_path
 
 _REDIS_CLIENT = redis.Redis.from_url(settings.REDIS_URL)
 
@@ -68,13 +69,9 @@ def upload_to_sftp(
     })
 
     try:
-        date_compressed = fecha.replace("-", "")
-        hour = datetime.now().strftime("%H")
-        remote_dir = (
-            f"{settings.SFTP_UPLOAD_DIR.rstrip('/')}"
-            f"/{tipo_archivo}/{date_compressed}/{hour}"
+        remote_path = build_upload_path(
+            settings.SFTP_UPLOAD_DIR, tipo_archivo, fecha, file_name,
         )
-        remote_path = f"{remote_dir}/{file_name}"
 
         logger.info(
             "Worker starting upload: task=%s file=%s size=%s",
@@ -82,7 +79,7 @@ def upload_to_sftp(
         )
 
         sftp.connect()
-        sftp.ensure_directory(remote_dir)
+        sftp.ensure_directory(remote_path.rsplit("/", 1)[0])
 
         def progress_callback(bytes_sent: int, _total: int) -> None:
             elapsed = time.perf_counter() - start_time

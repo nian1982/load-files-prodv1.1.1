@@ -3,7 +3,6 @@
 ## Requisitos previos
 
 - Docker 24+ y Docker Compose v2
-- Redis accesible desde el host (o usar `docker-compose.redis.yml`)
 - Keycloack accesible desde el host (externo)
 - Servidor SFTP accesible desde el host (externo)
 
@@ -32,11 +31,18 @@ uvicorn load_files.api.main:app --host 0.0.0.0 --port 8001
 
 ## Modo B: Backend en Docker + Frontend standalone
 
-### 1. Redis (si no tienes uno externo)
+> **Redis**: El `docker-compose.yml` principal ya incluye Redis como servicio.
+> Si prefieres usar Redis externo o el archivo `docker-compose.redis.yml`,
+> **debes iniciarlo antes** de levantar el compose principal.
+
+### 1. Redis (opcional — solo si no usas el integrado)
 
 ```bash
+# Iniciar Redis aparte (debe ejecutarse ANTES del compose principal)
 docker compose -f docker-compose.redis.yml up -d
 ```
+
+Si usas el Redis del compose principal, salta este paso.
 
 ### 2. Configurar backend
 
@@ -45,17 +51,21 @@ cp backend/.env.example backend/.env
 nano backend/.env
 ```
 
-Ajustar credenciales. Asegurar que `REDIS_URL` apunte a tu Redis:
+Ajustar credenciales. Si usas Redis externo, asegurar que `REDIS_URL` apunte a tu Redis:
 
 ```env
 REDIS_URL=redis://localhost:6379/0
 ```
+
+> Si usas el Redis del compose principal, `REDIS_URL` se sobreescribe automáticamente
+> a `redis://redis:6379/0` (no necesita cambios en `.env`).
 
 ### 3. Construir e iniciar backend
 
 ```bash
 docker compose build
 docker compose up -d
+# → Redis (si está integrado) + API + Worker
 # → API en http://localhost:8005
 # → Worker en background (sin puerto)
 ```
@@ -64,7 +74,7 @@ Verificar:
 
 ```bash
 curl http://localhost:8005/health
-# {"status":"healthy","version":"1.0.0","redis":"ok"}
+# {"status":"healthy","version":"1.0.1","redis":"ok"}
 ```
 
 ### 4. Iniciar frontend

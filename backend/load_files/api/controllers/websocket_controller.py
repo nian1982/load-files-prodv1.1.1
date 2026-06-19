@@ -39,13 +39,9 @@ class UploadProgressWebSocket:
             if state:
                 data = json.loads(state)
                 if data.get("type") in ("complete", "error"):
-                    logger.warning("REPUBLISH: task=%s state=%s", task_id, data.get("type"))
                     await redis_client.publish(f"upload:{task_id}", state)
                 else:
-                    logger.warning("SENDING_STORED_STATE: task=%s type=%s", task_id, data.get("type"))
                     await websocket.send_text(state)
-            else:
-                logger.warning("NO_STORED_STATE: task=%s", task_id)
 
             async for message in pubsub.listen():
                 if message["type"] == "message":
