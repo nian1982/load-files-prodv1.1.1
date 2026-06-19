@@ -32,25 +32,25 @@ class UploadProgressWebSocket:
         try:
             redis_client = aioredis.from_url(self._redis_url)
 
+            pubsub = redis_client.pubsub()
+            await pubsub.subscribe(f"upload:{task_id}")
+
             state = await redis_client.get(f"upload:{task_id}:state")
             if state:
                 data = json.loads(state)
                 if data.get("type") in ("complete", "error"):
+                    logger.warning("REPUBLISH: task=%s state=%s", task_id, data.get("type"))
+                    await redis_client.publish(f"upload:{task_id}", state)
+                else:
+                    logger.warning("SENDING_STORED_STATE: task=%s type=%s", task_id, data.get("type"))
                     await websocket.send_text(state)
-                    await websocket.close()
-                    return
-                await websocket.send_text(state)
-
-            pubsub = redis_client.pubsub()
-            await pubsub.subscribe(f"upload:{task_id}")
+            else:
+                logger.warning("NO_STORED_STATE: task=%s", task_id)
 
             async for message in pubsub.listen():
                 if message["type"] == "message":
                     data = message["data"].decode()
                     await websocket.send_text(data)
-                    parsed = json.loads(data)
-                    if parsed.get("type") in ("complete", "error"):
-                        break
 
         except WebSocketDisconnect:
             logger.debug("WebSocket disconnected for task %s", task_id)

@@ -7,6 +7,6 @@
 // corresponda desde index.html.
 
 // const API_BASE = "http://localhost:8005";
-// const WS_BASE  = "ws://localhost:8005";
-const API_BASE = "https://acid-landing-strictly-register.trycloudflare.com";
-const WS_BASE  = "wss://acid-landing-strictly-register.trycloudflare.com";
+// const WS_BASE = "ws://localhost:8005";
+const API_BASE = "https://kelkoo-royalty-closure-periodically.trycloudflare.com";
+const WS_BASE  = "wss://kelkoo-royalty-closure-periodically.trycloudflare.com";
