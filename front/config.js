@@ -6,7 +6,7 @@
 // Luego renombra el archivo activo a config.js o carga el que
 // corresponda desde index.html.
 
-// const API_BASE = "http://localhost:8005";
-// const WS_BASE = "ws://localhost:8005";
-const API_BASE = "https://hampton-broadway-estimate-recovery.trycloudflare.com";
-const WS_BASE  = "wss://hampton-broadway-estimate-recovery.trycloudflare.com";
+const API_BASE = "http://localhost:8005";
+const WS_BASE = "ws://localhost:8005";
+// const API_BASE = "https://hardwood-dose-swimming-suggestion.trycloudflare.com";
+// const WS_BASE  = "wss://hardwood-dose-swimming-suggestion.trycloudflare.com";

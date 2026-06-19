@@ -3,6 +3,8 @@ const CLIENT_ID = "api-load-files";
 const REQUIRED_ROLE = "load_files.upload";
 let accessToken = null;
 let progressWs = null;
+let uploading = false;
+let uploadStartTime = 0;
 
 function decodeToken(token) {
     try {
@@ -46,6 +48,8 @@ function navigate() {
     if (hash === "#/load") {
         showView("upload-view");
         document.getElementById("app-title").textContent = "Cargar Archivos - SFTP";
+        document.getElementById("result-card").style.display = "none";
+        document.getElementById("result-content").innerHTML = "";
     } else {
         location.hash = "#/load";
     }
@@ -168,6 +172,7 @@ function showProgress(phase, percent, speed, eta) {
 }
 
 function showResult(data) {
+    uploading = false;
     document.getElementById("progress-card").style.display = "none";
     disconnectWs();
 
@@ -185,7 +190,9 @@ function showResult(data) {
     html += "<tr><td>Tipo</td><td>" + (data.tipo_archivo || "") + "</td></tr>";
     html += "<tr><td>Fecha</td><td>" + (data.fecha || "") + "</td></tr>";
     html += "<tr><td>Ruta SFTP</td><td style='font-family:monospace;font-size:.8rem'>" + (data.upload_path || "") + "</td></tr>";
-    html += "<tr><td>Tiempo</td><td>" + (data.upload_time_seconds || "0") + "s</td></tr>";
+    html += "<tr><td>Tiempo SFTP</td><td>" + (data.upload_time_seconds || "0") + "s</td></tr>";
+    const totalSec = uploadStartTime ? ((Date.now() - uploadStartTime) / 1000).toFixed(1) : 0;
+    html += "<tr><td>Tiempo total</td><td>" + totalSec + "s</td></tr>";
     if (data.uploaded_at) html += "<tr><td>Subido</td><td>" + data.uploaded_at + "</td></tr>";
     if (data.error) html += "<tr><td>Error</td><td class='error'>" + data.error + "</td></tr>";
     html += "</table>";
@@ -284,8 +291,16 @@ function uploadFile(event) {
         return;
     }
 
+    if (uploading) {
+        addLog("Ya hay una subida en curso");
+        return;
+    }
+    uploading = true;
+    uploadStartTime = Date.now();
     btn.disabled = true;
     resultCard.style.display = "none";
+    document.getElementById("result-content").innerHTML = "";
+    document.getElementById("progress-log").innerHTML = "";
 
     showProgress("Enviando archivo al servidor...", 0, 0, 0);
     addLog("Archivo: " + file.name + " (" + formatBytes(file.size) + ")");
@@ -313,6 +328,7 @@ function uploadFile(event) {
             showProgress("Archivo recibido, iniciando subida SFTP...", 100, 0, 0);
             connectProgressWs(data.task_id);
         } else {
+            btn.disabled = false;
             try {
                 const err = JSON.parse(xhr.responseText);
                 showResult({
@@ -342,6 +358,7 @@ function uploadFile(event) {
     };
 
     xhr.onerror = function () {
+        btn.disabled = false;
         document.getElementById("progress-bar").className = "progress-bar error";
         addLog("Error de red al enviar archivo");
         setTimeout(function () {
@@ -356,8 +373,26 @@ function uploadFile(event) {
         }, 500);
     };
 
+    xhr.ontimeout = function () {
+        btn.disabled = false;
+        document.getElementById("progress-bar").className = "progress-bar error";
+        addLog("La subida supero el tiempo maximo de espera");
+        setTimeout(function () {
+            showResult({
+                success: false,
+                error: "Timeout: La subida HTTP supero el tiempo maximo de espera",
+                file_name: file.name, extension: "", size_bytes: file.size,
+                size_display: formatBytes(file.size), upload_path: "",
+                upload_time_seconds: 0, tipo_archivo: tipoArchivo,
+                fecha: fecha, id: "",
+            });
+        }, 500);
+    };
+
     xhr.open("POST", API_BASE + "/upload");
     xhr.setRequestHeader("Authorization", "Bearer " + accessToken);
+
+    xhr.timeout = Math.min(Math.max(file.size / 1000, 300000), 7200000);
     xhr.send(formData);
 }
 

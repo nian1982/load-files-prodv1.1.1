@@ -1,6 +1,7 @@
 import json
 import os
 import time
+from collections import deque
 from datetime import datetime
 from uuid import uuid4
 
@@ -81,16 +82,20 @@ def upload_to_sftp(
         sftp.connect()
         sftp.ensure_directory(remote_path.rsplit("/", 1)[0])
 
+        speed_samples = deque(maxlen=5)
+
         def progress_callback(bytes_sent: int, _total: int) -> None:
             elapsed = time.perf_counter() - start_time
             speed = bytes_sent / elapsed if elapsed > 0 else 0
+            speed_samples.append(speed)
+            avg_speed = sum(speed_samples) / len(speed_samples)
             percentage = (
                 round(bytes_sent / total_bytes * 100, 1)
                 if total_bytes > 0 else 0
             )
             eta = (
-                (total_bytes - bytes_sent) / speed
-                if speed > 0 else 0
+                (total_bytes - bytes_sent) / avg_speed
+                if avg_speed > 0 else 0
             )
             _publish(channel, {
                 "type": "progress",
@@ -98,7 +103,7 @@ def upload_to_sftp(
                 "percentage": percentage,
                 "bytes_sent": bytes_sent,
                 "total_bytes": total_bytes,
-                "speed_mbps": round(speed / 1024 / 1024, 2),
+                "speed_mbps": round(avg_speed / 1000 / 1000 * 8, 2),
                 "eta_seconds": round(eta),
                 "elapsed": round(elapsed, 1),
             })
