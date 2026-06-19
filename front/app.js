@@ -1,6 +1,4 @@
 console.log("load_files app.js v2 loaded");
-const API_BASE = "http://localhost:8005";
-const WS_BASE = "ws://localhost:8005";
 const CLIENT_ID = "api-load-files";
 const REQUIRED_ROLE = "load_files.upload";
 let accessToken = null;
