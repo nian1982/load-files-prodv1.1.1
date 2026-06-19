@@ -1,5 +1,6 @@
 import os
 import shutil
+from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -144,11 +145,35 @@ class UploadController:
                 detail="Upload queue unavailable. Try again later.",
             )
 
+        extension = self._get_extension(file.filename)
+        size_bytes = os.path.getsize(temp_path)
+
         return {
             "task_id": task_id,
             "status": "queued",
             "message": "File received and queued for upload",
+            "file_name": file.filename,
+            "extension": extension,
+            "size_bytes": size_bytes,
+            "size_display": self._format_size(size_bytes),
+            "tipo_archivo": tipo_archivo,
+            "fecha": fecha,
+            "uploaded_by": username,
+            "enqueued_at": datetime.now().isoformat(),
         }
+
+    def _get_extension(self, file_name: str) -> str:
+        idx = file_name.rfind(".")
+        return file_name[idx:].lower() if idx != -1 else ""
+
+    @staticmethod
+    def _format_size(bytes_: int) -> str:
+        size = float(bytes_)
+        for unit in ("B", "KB", "MB", "GB"):
+            if size < 1024:
+                return f"{size:.2f} {unit}"
+            size /= 1024
+        return f"{size:.2f} TB"
 
 
 def _cleanup_temp(file_path: str) -> None:
