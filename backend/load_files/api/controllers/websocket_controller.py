@@ -1,11 +1,10 @@
 import json
 
-import redis.asyncio as aioredis
 from fastapi import WebSocket, WebSocketDisconnect
 
 from load_files.api.security import verify_token
-from load_files.config.settings import settings
 from load_files.utils.logger import logger
+from solid.ws.redis_subscriber import RedisProgressSubscriber
 
 CLIENT_ID = "api-load-files"
 REQUIRED_ROLE = "load_files.upload"
@@ -13,7 +12,7 @@ REQUIRED_ROLE = "load_files.upload"
 
 class UploadProgressWebSocket:
     def __init__(self) -> None:
-        self._redis_url = settings.REDIS_URL
+        self._subscriber: RedisProgressSubscriber | None = None
 
     async def handle(self, websocket: WebSocket, task_id: str, token: str | None = None) -> None:
         payload = verify_token(token) if token else None
@@ -29,40 +28,34 @@ class UploadProgressWebSocket:
         await websocket.accept()
         logger.debug("WebSocket connected for task %s (user: %s)", task_id, payload.get("preferred_username"))
 
+        channel = f"upload:{task_id}"
+        subscriber = RedisProgressSubscriber()
+
         try:
-            redis_client = aioredis.from_url(self._redis_url)
+            await subscriber.connect()
+            await subscriber.subscribe(channel)
 
-            pubsub = redis_client.pubsub()
-            await pubsub.subscribe(f"upload:{task_id}")
-
-            state = await redis_client.get(f"upload:{task_id}:state")
+            state = await subscriber.get_state(f"upload:{task_id}:state")
             if state:
-                data = json.loads(state)
-                if data.get("type") in ("complete", "error"):
-                    await redis_client.publish(f"upload:{task_id}", state)
+                if state.get("type") in ("complete", "error"):
+                    await subscriber.publish(channel, state)
                 else:
-                    await websocket.send_text(state)
+                    await websocket.send_text(json.dumps(state))
 
-            async for message in pubsub.listen():
-                if message["type"] == "message":
-                    data = message["data"].decode()
-                    await websocket.send_text(data)
+            async for data in subscriber.listen():
+                await websocket.send_text(json.dumps(data))
 
         except WebSocketDisconnect:
             logger.debug("WebSocket disconnected for task %s", task_id)
         except Exception as e:
             logger.error("WebSocket error for task %s: %s", task_id, e)
             try:
-                await websocket.send_json({
-                    "type": "error",
-                    "message": "Internal server error",
-                })
+                await websocket.send_json({"type": "error", "message": "Internal server error"})
             except Exception:
                 pass
         finally:
             try:
-                await pubsub.unsubscribe(f"upload:{task_id}")
-                await pubsub.close()
-                await redis_client.close()
+                await subscriber.unsubscribe(channel)
+                await subscriber.close()
             except Exception:
                 pass

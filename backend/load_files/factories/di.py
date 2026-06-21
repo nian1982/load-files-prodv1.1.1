@@ -1,17 +1,31 @@
 from functools import lru_cache
 
+from solid.sftp.config import SFTPSettings
+from solid.sftp.paramiko_client import ParamikoSFTPClient
+from solid.upload.service import UploadService
+
+from load_files.config.settings import settings
 from load_files.implementations.celery_task_queue import CeleryTaskQueue
-from load_files.implementations.paramiko_sftp_client import ParamikoSFTPClient
-from load_files.implementations.upload_service_impl import UploadServiceImpl
 from load_files.interfaces.task_queue import TaskQueue
 
 
 def create_sftp_client() -> ParamikoSFTPClient:
-    return ParamikoSFTPClient()
+    sftp_settings = SFTPSettings(
+        host=settings.SFTP_HOST,
+        port=settings.SFTP_PORT,
+        user=settings.SFTP_USER,
+        password=settings.SFTP_PASS,
+        upload_dir=settings.SFTP_UPLOAD_DIR,
+        chunk_size=settings.SFTP_CHUNK_SIZE,
+    )
+    return ParamikoSFTPClient(sftp_settings)
 
 
-def create_upload_service() -> UploadServiceImpl:
-    return UploadServiceImpl(create_sftp_client())
+def create_upload_service() -> UploadService:
+    return UploadService(
+        create_sftp_client(),
+        upload_dir=settings.SFTP_UPLOAD_DIR,
+    )
 
 
 def create_task_queue() -> TaskQueue:
@@ -19,7 +33,7 @@ def create_task_queue() -> TaskQueue:
 
 
 @lru_cache
-def get_sync_service() -> UploadServiceImpl:
+def get_sync_service() -> UploadService:
     return create_upload_service()
 
 

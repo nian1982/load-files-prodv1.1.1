@@ -7,21 +7,17 @@ from uuid import uuid4
 from fastapi import HTTPException, UploadFile, status
 
 from load_files.config.settings import settings
-from load_files.exceptions import (
-    DomainException,
-    FileTypeNotAllowedException,
-    ValidationException,
-)
-from load_files.implementations.upload_service_impl import UploadServiceImpl
 from load_files.interfaces.task_queue import TaskQueue
 from load_files.utils.logger import logger
 from load_files.utils.path_utils import build_upload_path
+from solid.upload.exceptions import UploadError
+from solid.upload.service import UploadService
 
 
 class UploadController:
     def __init__(
         self,
-        sync_service: UploadServiceImpl,
+        sync_service: UploadService,
         task_queue: TaskQueue,
     ):
         self._sync_service = sync_service
@@ -59,21 +55,10 @@ class UploadController:
                 ),
                 "error": result.error,
             }
-        except FileTypeNotAllowedException as e:
-            logger.warning("File type not allowed: %s", e.message)
+        except UploadError as e:
+            logger.warning("Upload validation error: %s - %s", e.code, e.message)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail=e.message,
-            )
-        except ValidationException as e:
-            logger.warning("Validation error: %s", e.message)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail=e.message,
-            )
-        except DomainException as e:
-            logger.error("Domain error: %s - %s", e.code, e.message)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=e.message,
             )
 
     def upload_async(
@@ -94,12 +79,7 @@ class UploadController:
                 file.filename, tipo_archivo, fecha,
                 file_obj=file.file,
             )
-        except FileTypeNotAllowedException as e:
-            logger.warning("File type not allowed: %s", e.message)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail=e.message,
-            )
-        except ValidationException as e:
+        except UploadError as e:
             logger.warning("Validation error: %s", e.message)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail=e.message,

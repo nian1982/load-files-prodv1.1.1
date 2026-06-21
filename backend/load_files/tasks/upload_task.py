@@ -9,10 +9,12 @@ import redis
 
 from load_files.celery_app import celery_app
 from load_files.config.settings import settings
-from load_files.exceptions import DomainException
-from load_files.implementations.paramiko_sftp_client import ParamikoSFTPClient
 from load_files.utils.logger import logger
-from load_files.utils.path_utils import build_upload_path
+from solid.sftp.config import SFTPSettings
+from solid.sftp.exceptions import SFTPError
+from solid.sftp.paramiko_client import ParamikoSFTPClient
+from solid.ws.config import WSSettings
+from solid.ws.redis_publisher import RedisProgressPublisher
 
 _REDIS_CLIENT = redis.Redis.from_url(settings.REDIS_URL)
 
@@ -53,7 +55,17 @@ def upload_to_sftp(
     channel = f"upload:{task_id}"
     start_time = time.perf_counter()
     total_bytes = os.path.getsize(file_path)
-    sftp = ParamikoSFTPClient()
+
+    sftp_settings = SFTPSettings(
+        host=settings.SFTP_HOST,
+        port=settings.SFTP_PORT,
+        user=settings.SFTP_USER,
+        password=settings.SFTP_PASS,
+        upload_dir=settings.SFTP_UPLOAD_DIR,
+        chunk_size=settings.SFTP_CHUNK_SIZE,
+    )
+    sftp = ParamikoSFTPClient(sftp_settings)
+
     extension = (
         file_name[file_name.rfind("."):].lower()
         if "." in file_name else ""
@@ -70,9 +82,11 @@ def upload_to_sftp(
     })
 
     try:
-        remote_path = build_upload_path(
-            settings.SFTP_UPLOAD_DIR, tipo_archivo, fecha, file_name,
+        remote_dir = (
+            f"{settings.SFTP_UPLOAD_DIR.rstrip('/')}"
+            f"/{tipo_archivo}/{fecha.replace('-', '')}/{datetime.now().strftime('%H')}"
         )
+        remote_path = f"{remote_dir}/{file_name}"
 
         logger.info(
             "Worker starting upload: task=%s file=%s size=%s",
@@ -80,7 +94,7 @@ def upload_to_sftp(
         )
 
         sftp.connect()
-        sftp.ensure_directory(remote_path.rsplit("/", 1)[0])
+        sftp.ensure_directory(remote_dir)
 
         speed_samples = deque(maxlen=5)
 
@@ -138,10 +152,10 @@ def upload_to_sftp(
         _publish(channel, {"type": "complete", "task_id": task_id, "result": result})
         return result
 
-    except DomainException as e:
+    except SFTPError as e:
         elapsed = time.perf_counter() - start_time
-        msg = f"{e.code}: {e.message}"
-        logger.error("Worker upload failed (domain): task=%s error=%s", task_id, msg)
+        msg = f"{e.__class__.__name__}: {e.message}"
+        logger.error("Worker upload failed (sftp): task=%s error=%s", task_id, msg)
         _publish(channel, {
             "type": "error", "task_id": task_id,
             "message": _safe_error(msg), "elapsed": round(elapsed, 2),

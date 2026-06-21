@@ -14,7 +14,9 @@ services:
 
   api:
     image: ${IMAGE_NAME}:${IMAGE_VERSION}-${IMAGE_ENV}
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: load_files_api
     env_file: ./backend/.env
     environment:
@@ -34,7 +36,9 @@ services:
       - "host.docker.internal:host-gateway"
 
   worker:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: load_files_worker
     env_file: ./backend/.env
     environment:

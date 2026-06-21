@@ -14,7 +14,9 @@ services:
 
   api:
     image: ${IMAGE_NAME}:${IMAGE_VERSION}-${IMAGE_ENV}
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: load_files_api_local
     command: uvicorn load_files.api.main:app --host 0.0.0.0 --port 8005 --workers 5 --timeout-keep-alive 120
     ports:
@@ -34,7 +36,9 @@ services:
     restart: unless-stopped
 
   worker:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: load_files_worker_local
     command: celery -A load_files.celery_app worker -l info -c 5 --max-tasks-per-child 10
     env_file: ./backend/.env

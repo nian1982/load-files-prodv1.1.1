@@ -1,0 +1,12 @@
+.env
+.git/
+.gitignore
+__pycache__/
+*.pyc
+logs/
+.pytest_cache/
+front/
+README.md
+*.md
+nginx.conf
+serve.json
