@@ -3,6 +3,7 @@ import time
 from typing import BinaryIO, Callable, Optional
 from datetime import datetime
 
+from solid.sftp.exceptions import SFTPConnectionError, SFTPDirectoryError, SFTPTransferError
 from solid.sftp.interface import ISFTPClient
 from solid.shared.logger import setup_logger
 from solid.upload.config import UploadSettings
@@ -88,6 +89,51 @@ class UploadService:
                 tipo_archivo=tipo_archivo,
                 fecha=fecha,
             )
+        except SFTPConnectionError as e:
+            elapsed = time.perf_counter() - start
+            logger.error("SFTP connection failed: %s", e)
+            return UploadResult.error_result(
+                file_name=file_name,
+                extension=extension,
+                size_bytes=bytes_sent,
+                size_display=self._format_size(bytes_sent),
+                upload_path=remote_path,
+                upload_time_seconds=round(elapsed, 2),
+                tipo_archivo=tipo_archivo,
+                fecha=fecha,
+                error=f"No se pudo conectar al servidor SFTP ({self._sftp._settings.host}:{self._sftp._settings.port})",
+                error_code="SFTP_CONNECTION_ERROR",
+            )
+        except SFTPDirectoryError as e:
+            elapsed = time.perf_counter() - start
+            logger.error("SFTP directory error: %s", e)
+            return UploadResult.error_result(
+                file_name=file_name,
+                extension=extension,
+                size_bytes=bytes_sent,
+                size_display=self._format_size(bytes_sent),
+                upload_path=remote_path,
+                upload_time_seconds=round(elapsed, 2),
+                tipo_archivo=tipo_archivo,
+                fecha=fecha,
+                error=str(e),
+                error_code="SFTP_DIRECTORY_ERROR",
+            )
+        except SFTPTransferError as e:
+            elapsed = time.perf_counter() - start
+            logger.error("SFTP transfer error: %s", e)
+            return UploadResult.error_result(
+                file_name=file_name,
+                extension=extension,
+                size_bytes=bytes_sent,
+                size_display=self._format_size(bytes_sent),
+                upload_path=remote_path,
+                upload_time_seconds=round(elapsed, 2),
+                tipo_archivo=tipo_archivo,
+                fecha=fecha,
+                error=str(e),
+                error_code="SFTP_TRANSFER_ERROR",
+            )
         except Exception as e:
             elapsed = time.perf_counter() - start
             logger.error("Upload failed: %s - %s", file_name, e)
@@ -101,6 +147,7 @@ class UploadService:
                 tipo_archivo=tipo_archivo,
                 fecha=fecha,
                 error=self._safe_error(e),
+                error_code="UPLOAD_ERROR",
             )
         finally:
             self._sftp.disconnect()

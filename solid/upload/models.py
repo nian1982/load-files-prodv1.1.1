@@ -17,6 +17,7 @@ class UploadResult:
     fecha: str
     uploaded_at: datetime | None = None
     error: str | None = None
+    error_code: str | None = None
 
     @classmethod
     def success_result(
@@ -56,6 +57,7 @@ class UploadResult:
         tipo_archivo: str,
         fecha: str,
         error: str,
+        error_code: str = "UPLOAD_ERROR",
     ) -> "UploadResult":
         return cls(
             id=uuid4(),
@@ -69,6 +71,7 @@ class UploadResult:
             tipo_archivo=tipo_archivo,
             fecha=fecha,
             error=error,
+            error_code=error_code,
         )
 
     @classmethod

@@ -8,7 +8,12 @@ class UploadSettings(BaseSettings):
     environment: str = "development"
     upload_dir: str = "/upload"
 
-    model_config = SettingsConfigDict(extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="SFTP_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     @property
     def allowed_file_types_list(self) -> list[str]:
